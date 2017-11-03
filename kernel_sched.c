@@ -10,8 +10,6 @@
 #ifndef NVALGRIND
 #include <valgrind/valgrind.h>
 #endif
-//Test commit
-// change
 
 
 /*
@@ -201,8 +199,8 @@ CCB cctx[MAX_CORES];
   Both of these structures are protected by @c sched_spinlock.
 */
 
-
-rlnode SCHED;                         /* The scheduler queue */
+int queue_levels=6;
+rlnode SCHED[queue_levels];                   /* The scheduler queue */
 rlnode TIMEOUT_LIST;				  /* The list of threads with a timeout */
 Mutex sched_spinlock = MUTEX_INIT;    /* spinlock for scheduler queue */
 
@@ -292,7 +290,7 @@ static void sched_make_ready(TCB* tcb)
 
   *** MUST BE CALLED WITH sched_spinlock HELD ***
 */
-static TCB* sched_queue_select()
+static TCB* sched_queue_select(enum SCHED_CAUSE cause, TCB* thread)
 {
 
   /* Empty the timeout list up to the current time and wake up each thread */
@@ -303,6 +301,12 @@ static TCB* sched_queue_select()
   			break;
   		sched_make_ready(tcb);
   }
+
+switch(cause) 
+{
+	case SCHED_QUANTUM: 
+	
+}
 
   /* Get the head of the SCHED list */
   rlnode * sel = rlist_pop_front(& SCHED);
@@ -410,7 +414,7 @@ void yield(enum SCHED_CAUSE cause)
   }
 
   /* Get next */
-  TCB* next = sched_queue_select();
+  TCB* next = sched_queue_select(cause,current);
 
   /* Maybe there was nothing ready in the scheduler queue ? */
   if(next==NULL) {
