@@ -55,6 +55,8 @@ Mutex active_threads_spinlock = MUTEX_INIT;
 
 #define THREAD_SIZE  (THREAD_TCB_SIZE+THREAD_STACK_SIZE)
 
+#define QUEUE_LEVELS = 10
+
 //#define MMAPPED_THREAD_MEM 
 #ifdef MMAPPED_THREAD_MEM 
 
@@ -133,6 +135,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->phase = CTX_CLEAN;
   tcb->thread_func = func;
   tcb->wakeup_time = NO_TIMEOUT;
+  tcb->priority = 0;
   rlnode_init(& tcb->sched_node, tcb);  /* Intrusive list node */
 
 
@@ -199,8 +202,7 @@ CCB cctx[MAX_CORES];
   Both of these structures are protected by @c sched_spinlock.
 */
 
-int queue_levels=6;
-rlnode SCHED[queue_levels];                   /* The scheduler queue */
+rlnode SCHED[QUEUE_LEVELS];                   /* The scheduler queue */
 rlnode TIMEOUT_LIST;				  /* The list of threads with a timeout */
 Mutex sched_spinlock = MUTEX_INIT;    /* spinlock for scheduler queue */
 
@@ -251,7 +253,7 @@ static void sched_register_timeout(TCB* tcb, TimerDuration timeout)
 static void sched_queue_add(TCB* tcb)
 {
   /* Insert at the end of the scheduling list */
-  rlist_push_back(& SCHED, & tcb->sched_node);
+  rlist_push_back(& SCHED[tcb->priority], & tcb->sched_node);
 
   /* Restart possibly halted cores */
   cpu_core_restart_one();
@@ -305,11 +307,32 @@ static TCB* sched_queue_select(enum SCHED_CAUSE cause, TCB* thread)
 switch(cause) 
 {
 	case SCHED_QUANTUM: 
-	
+  if (thread->priority != QUEUE_LEVELS-1) {
+    thread->priority = thread->priority + 1;
+
+
+  }
+  break;
+  case SCHED_IO:
+  case SCHED_USER:
+  if (tread->priority != 0) {
+    thread->priority = thread->priority - 1;
+  }
+  break;
+  
 }
 
   /* Get the head of the SCHED list */
-  rlnode * sel = rlist_pop_front(& SCHED);
+  int i = 0;
+  while(i<QUEUE_LEVELS-1){
+    rlnode * sel = rlist_pop_front(& SCHED[i]);
+    if *sel != NULL {
+      break;
+    }
+    i++;
+  }
+
+  if (i==QUEUE_LEVELS){printf("Index i reached 10, it shouldnt happen!")}
 
   return sel->tcb;  /* When the list is empty, this is NULL */
 } 
@@ -490,7 +513,7 @@ void gain(int preempt)
   if(preempt) preempt_on;
 
   /* Set a 1-quantum alarm */
-  bios_set_timer(QUANTUM);
+  bios_set_timer(current->(priority+1)*QUANTUM);
 }
 
 
