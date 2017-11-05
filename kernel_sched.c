@@ -1,7 +1,7 @@
 
 #include <assert.h>
 #include <sys/mman.h>
-
+#include <math.h>
 #include "tinyos.h"
 #include "kernel_cc.h"
 #include "kernel_sched.h"
@@ -345,7 +345,7 @@ switch(cause)
 
                     threadPI->tcb->priority = threadPI->tcb->priority -1;
 
-                    sched_queue_add(threadPI);
+                    sched_queue_add(threadPI->tcb);
                 }
         }
   break;
@@ -356,13 +356,13 @@ switch(cause)
   rlnode * sel;
   while(i<QUEUE_LEVELS-1){
     sel = rlist_pop_front(& SCHED[i]);
-    if *sel != NULL {
+    if (sel != NULL) {
       break;
     }
     i++;
   }
 
-  if (i==QUEUE_LEVELS){printf("Index i reached 10, it shouldnt happen!")}
+  if (i==QUEUE_LEVELS){printf("Index i reached 10, it shouldnt happen!");}
 
   return sel->tcb;  /* When the list is empty, this is NULL */
 } 
@@ -543,7 +543,8 @@ void gain(int preempt)
   if(preempt) preempt_on;
 
   /* Set a 1-quantum alarm */
-  bios_set_timer(current->(priority+1)*QUANTUM);
+  int powbios = pow(2,current->priority);
+  bios_set_timer(QUANTUM*powbios);
 }
 
 
@@ -569,7 +570,7 @@ static void idle_thread()
  */
 void initialize_scheduler()
 {
-  rlnode_init(&SCHED, NULL);
+  rlnode_init(SCHED, NULL);
   rlnode_init(&TIMEOUT_LIST, NULL);
 }
 
