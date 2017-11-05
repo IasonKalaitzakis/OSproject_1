@@ -47,6 +47,8 @@
 volatile unsigned int active_threads = 0;
 Mutex active_threads_spinlock = MUTEX_INIT;
 
+
+
 /* This is specific to Intel Pentium! */
 #define SYSTEM_PAGE_SIZE  (1<<12)
 
@@ -55,7 +57,9 @@ Mutex active_threads_spinlock = MUTEX_INIT;
 
 #define THREAD_SIZE  (THREAD_TCB_SIZE+THREAD_STACK_SIZE)
 
-#define QUEUE_LEVELS = 10
+#define QUEUE_LEVELS 10
+
+#define MAX_MUTEX_FOR_PRIORITY_SWITCHING 5
 
 //#define MMAPPED_THREAD_MEM 
 #ifdef MMAPPED_THREAD_MEM 
@@ -202,11 +206,16 @@ CCB cctx[MAX_CORES];
   Both of these structures are protected by @c sched_spinlock.
 */
 
-rlnode SCHED[QUEUE_LEVELS];                   /* The scheduler queue */
+rlnode SCHED[QUEUE_LEVELS];           /* The scheduler queue */
 rlnode TIMEOUT_LIST;				  /* The list of threads with a timeout */
 Mutex sched_spinlock = MUTEX_INIT;    /* spinlock for scheduler queue */
 
+//--------------------------
 
+int continuousMutexCauses = 0;
+
+
+//--------------------------
 
 /* Interrupt handler for ALARM */
 void yield_handler()
@@ -253,7 +262,7 @@ static void sched_register_timeout(TCB* tcb, TimerDuration timeout)
 static void sched_queue_add(TCB* tcb)
 {
   /* Insert at the end of the scheduling list */
-  rlist_push_back(& SCHED[tcb->priority], & tcb->sched_node);
+  rlist_push_back(&SCHED[tcb->priority], & tcb->sched_node);
 
   /* Restart possibly halted cores */
   cpu_core_restart_one();
@@ -310,22 +319,43 @@ switch(cause)
   if (thread->priority != QUEUE_LEVELS-1) {
     thread->priority = thread->priority + 1;
 
+    continuousMutexCauses = 0;
+
 
   }
   break;
   case SCHED_IO:
   case SCHED_USER:
-  if (tread->priority != 0) {
+  if (thread->priority != 0) {
     thread->priority = thread->priority - 1;
+    continuousMutexCauses = 0;
   }
   break;
   
+  case SCHED_MUTEX:
+
+        continuousMutexCauses++;
+        if (continuousMutexCauses==MAX_MUTEX_FOR_PRIORITY_SWITCHING){
+
+        		int i;
+
+                for (i=1;i<=QUEUE_LEVELS-1;i++){
+
+                    rlnode *threadPI = rlist_pop_front(& SCHED[i]);
+
+                    threadPI->tcb->priority = threadPI->tcb->priority -1;
+
+                    sched_queue_add(threadPI);
+                }
+        }
+  break;
 }
 
   /* Get the head of the SCHED list */
   int i = 0;
+  rlnode * sel;
   while(i<QUEUE_LEVELS-1){
-    rlnode * sel = rlist_pop_front(& SCHED[i]);
+    sel = rlist_pop_front(& SCHED[i]);
     if *sel != NULL {
       break;
     }
