@@ -264,6 +264,8 @@ static void sched_queue_add(TCB* tcb)
   /* Insert at the end of the scheduling list */
   rlist_push_back(&SCHED[tcb->priority], & tcb->sched_node);
 
+  //printf("the priority of the thread is %d", tcb->priority);
+
   /* Restart possibly halted cores */
   cpu_core_restart_one();
 }
@@ -325,6 +327,13 @@ switch(cause)
   }
   break;
   case SCHED_IO:
+    if (thread->priority != 0) {
+    thread->priority = thread->priority - 1;
+    continuousMutexCauses = 0;
+  }
+
+  break;
+
   case SCHED_USER:
   if (thread->priority != 0) {
     thread->priority = thread->priority - 1;
@@ -337,6 +346,8 @@ switch(cause)
         continuousMutexCauses++;
         if (continuousMutexCauses==MAX_MUTEX_FOR_PRIORITY_SWITCHING){
 
+            continuousMutexCauses=0;
+
         		int i;
 
                 for (i=1;i<=QUEUE_LEVELS-1;i++){
@@ -348,13 +359,15 @@ switch(cause)
                     sched_queue_add(threadPI->tcb);
                 }
         }
+
+
   break;
 }
 
   /* Get the head of the SCHED list */
   int i = 0;
-  rlnode * sel;
-  while(i<QUEUE_LEVELS-1){
+  rlnode * sel = NULL;
+  while(i<=QUEUE_LEVELS-1){
     sel = rlist_pop_front(& SCHED[i]);
     if (sel != NULL) {
       break;
