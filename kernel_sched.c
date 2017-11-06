@@ -582,8 +582,11 @@ static void idle_thread()
   Initialize the scheduler queue
  */
 void initialize_scheduler()
-{
-  rlnode_init(SCHED, NULL);
+{ 
+  int i;
+  for (i=0;i<QUEUE_LEVELS;i++){
+  rlnode_init(&SCHED[i], NULL);
+  }
   rlnode_init(&TIMEOUT_LIST, NULL);
 }
 
