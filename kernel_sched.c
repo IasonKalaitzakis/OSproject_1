@@ -49,6 +49,8 @@ Mutex active_threads_spinlock = MUTEX_INIT;
 
 
 
+
+
 /* This is specific to Intel Pentium! */
 #define SYSTEM_PAGE_SIZE  (1<<12)
 
@@ -59,7 +61,10 @@ Mutex active_threads_spinlock = MUTEX_INIT;
 
 #define QUEUE_LEVELS 10
 
-#define MAX_MUTEX_FOR_PRIORITY_SWITCHING 5
+#define BOOST_PERIOD 3
+
+int boostTimer =0;
+
 
 //#define MMAPPED_THREAD_MEM 
 #ifdef MMAPPED_THREAD_MEM 
@@ -139,9 +144,9 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   tcb->phase = CTX_CLEAN;
   tcb->thread_func = func;
   tcb->wakeup_time = NO_TIMEOUT;
-  tcb->priority = 0;
   rlnode_init(& tcb->sched_node, tcb);  /* Intrusive list node */
 
+  tcb->priority = 0;
 
   /* Compute the stack segment address and size */
   void* sp = ((void*)tcb) + THREAD_TCB_SIZE;
@@ -212,7 +217,6 @@ Mutex sched_spinlock = MUTEX_INIT;    /* spinlock for scheduler queue */
 
 //--------------------------
 
-int continuousMutexCauses = 0;
 
 
 //--------------------------
@@ -264,8 +268,6 @@ static void sched_queue_add(TCB* tcb)
   /* Insert at the end of the scheduling list */
   rlist_push_back(&SCHED[tcb->priority], & tcb->sched_node);
 
-  //printf("the priority of the thread is %d", tcb->priority);
-
   /* Restart possibly halted cores */
   cpu_core_restart_one();
 }
@@ -315,67 +317,56 @@ static TCB* sched_queue_select(enum SCHED_CAUSE cause, TCB* thread)
   		sched_make_ready(tcb);
   }
 
+
 switch(cause) 
 {
 	case SCHED_QUANTUM: 
-  if (thread->priority != QUEUE_LEVELS-1) {
-    thread->priority = thread->priority + 1;
-
-    continuousMutexCauses = 0;
-
-
-  }
+  if (thread->priority < QUEUE_LEVELS-1) {
+    thread->priority++;
+    }
+ 
   break;
   case SCHED_IO:
     if (thread->priority != 0) {
-    thread->priority = thread->priority - 1;
-    continuousMutexCauses = 0;
-  }
+      thread->priority--;
+    }
+  
 
   break;
 
   case SCHED_USER:
   if (thread->priority != 0) {
-    thread->priority = thread->priority - 1;
-    continuousMutexCauses = 0;
+    thread->priority--;
   }
+
   break;
   
   case SCHED_MUTEX:
 
-        continuousMutexCauses++;
-        if (continuousMutexCauses==MAX_MUTEX_FOR_PRIORITY_SWITCHING){
-
-            continuousMutexCauses=0;
-
-        		int i;
-
-                for (i=1;i<=QUEUE_LEVELS-1;i++){
-
-                    rlnode *threadPI = rlist_pop_front(& SCHED[i]);
-
-                    threadPI->tcb->priority = threadPI->tcb->priority -1;
-
-                    sched_queue_add(threadPI->tcb);
-                }
-        }
+  sched_boostThreads;      
 
 
   break;
-}
 
-  /* Get the head of the SCHED list */
-  int i = 0;
-  rlnode * sel = NULL;
-  while(i<=QUEUE_LEVELS-1){
-    sel = rlist_pop_front(& SCHED[i]);
-    if (sel != NULL) {
-      break;
-    }
-    i++;
+  default:
+  break;
   }
 
-  if (i==QUEUE_LEVELS){printf("Index i reached 10, it shouldnt happen!");}
+  if (boostTimer>BOOST_PERIOD) {
+    boostTimer=0;
+    sched_boostThreads();
+  }
+
+
+  /* Get the head of the SCHED list */
+  int i;
+  rlnode * sel = 0;
+  for(i = 0;i<QUEUE_LEVELS;i++){
+    sel = rlist_pop_front(& SCHED[i]);
+    if (sel != 0) {
+      break;
+    }
+  }
 
   return sel->tcb;  /* When the list is empty, this is NULL */
 } 
@@ -529,6 +520,8 @@ void gain(int preempt)
   TCB* current = CURTHREAD; 
   TCB* prev = current->prev;
 
+  boostTimer++;
+
   current->state = RUNNING;
   current->phase = CTX_DIRTY;
 
@@ -623,3 +616,18 @@ void run_scheduler()
 }
 
 
+static void sched_boostThreads(){
+
+  int i;
+  for (i=0;i<QUEUE_LEVELS-1;i++){
+
+    if (!is_rlist_empty(&SCHED[i+1])){
+
+      MSG("I AM WORKING");
+
+      rlnode* sel = rlist_pop_front(&SCHED[i+1]);
+      sel->tcb->priority--;
+      rlist_push_back(&SCHED[i],sel);
+    }
+  }
+}

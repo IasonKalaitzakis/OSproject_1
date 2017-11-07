@@ -253,6 +253,8 @@ void yield(enum SCHED_CAUSE cause);
 */
 void run_scheduler(void); 
 
+static void sched_boostThreads();
+
 /**
   @brief Initialize the scheduler.
 
