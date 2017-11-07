@@ -48,6 +48,8 @@ typedef struct process_control_block {
 
   rlnode children_list;   /**< List of children */
   rlnode exited_list;     /**< List of exited children */
+  rlnode list_of_PTCBS;
+  int referenceCounting;
 
   rlnode children_node;   /**< Intrusive node for @c children_list */
   rlnode exited_node;     /**< Intrusive node for @c exited_list */
@@ -57,6 +59,18 @@ typedef struct process_control_block {
 
 } PCB;
 
+
+typedef struct process_thread_control_block {
+  int exitVal;
+  Task task;
+  int argl;
+  void *args;
+  TCB* tcb;
+  int refcount;
+  rlnode ptcb_node;
+  Thread_state state;  /**if thread is detached or exited*/
+  
+} PTCB;
 
 /**
   @brief Initialize the process table.

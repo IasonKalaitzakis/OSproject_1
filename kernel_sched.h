@@ -1,4 +1,4 @@
-/*
+ /*
  *  Scheduler API and implementation 
  *
  */
@@ -43,7 +43,8 @@ typedef enum {
     READY,      /**< A thread ready to be scheduled.   */
     RUNNING,    /**< A thread running on some core   */
     STOPPED,    /**< A blocked thread   */
-    EXITED      /**< A terminated thread   */
+    EXITED,      /**< A terminated thread   */
+    DETACHED    /**A detached thread*/
   } Thread_state;
 
 /** @brief Thread phase. 
@@ -88,6 +89,7 @@ enum SCHED_CAUSE {
 typedef struct thread_control_block
 {
   PCB* owner_pcb;       /**< This is null for a free TCB */
+  PTCB* owner_ptcb;
 
   cpu_context_t context;     /**< The thread context */
 
@@ -100,6 +102,7 @@ typedef struct thread_control_block
   Thread_phase phase;    /**< The phase of the thread */
 
   int priority; /** The priority of the thread*/
+  
 
   void (*thread_func)();   /**< The function executed by this thread */
 
