@@ -44,6 +44,7 @@ static inline void initialize_PCB(PCB* pcb)
   rlnode_init(& pcb->list_of_PTCBS, NULL); /** Initialize list of PTCBS*/
   rlnode_init(& pcb->children_node, pcb);
   rlnode_init(& pcb->exited_node, pcb);
+  //rlnode_init(& pcb->PTCB_node, pcb); /**Initialize the node*/
   pcb->child_exit = COND_INIT;
 }
 
@@ -160,7 +161,6 @@ Pid_t sys_Exec(Task call, int argl, void* args)
     }
   }
 
-
   /* Set the main thread's function */
   newproc->main_task = call;
 
@@ -172,13 +172,14 @@ Pid_t sys_Exec(Task call, int argl, void* args)
   }
   else
     newproc->args=NULL;
+  
 
   /* 
     Create and wake up the thread for the main function. This must be the last thing
     we do, because once we wakeup the new thread it may run! so we need to have finished
     the initialization of the PCB.
    */
-  if(call != NULL) {
+  if(call != NULL ) {
     newproc->main_thread = spawn_thread(newproc, start_main_thread);
     wakeup(newproc->main_thread);
   }

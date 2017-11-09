@@ -61,10 +61,15 @@ Mutex active_threads_spinlock = MUTEX_INIT;
 
 #define QUEUE_LEVELS 10
 
-#define BOOST_PERIOD 3
+//Values that determine the speed of the algorithm:
+#define BOOST_PERIOD 2            //How often to boost threads of the list in a higher priority
+#define QUANTUM_SCALING_VALUE 5   //Higher value means less scaling between each queue's thread quantum 
+
+
+
+
 
 int boostTimer =0;
-
 
 //#define MMAPPED_THREAD_MEM 
 #ifdef MMAPPED_THREAD_MEM 
@@ -147,6 +152,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
   rlnode_init(& tcb->sched_node, tcb);  /* Intrusive list node */
 
   tcb->priority = 0;
+  tcb->prevPriority = 0;
 
   /* Compute the stack segment address and size */
   void* sp = ((void*)tcb) + THREAD_TCB_SIZE;
@@ -317,21 +323,32 @@ static TCB* sched_queue_select(enum SCHED_CAUSE cause, TCB* thread)
   		sched_make_ready(tcb);
   }
 
+//Restore values to those before priority inversion mode started
+  if (cause != SCHED_MUTEX && thread->priorityInversionMode==1){
+
+      thread->priorityInversionMode = 0;
+      thread->priority = thread->prevPriority;
+      thread->prevPriority = 0;
+  }
 
 switch(cause) 
 {
 	case SCHED_QUANTUM: 
   if (thread->priority < QUEUE_LEVELS-1) {
     thread->priority++;
-    }
- 
+  }
   break;
+
   case SCHED_IO:
     if (thread->priority != 0) {
       thread->priority--;
     }
-  
+  break;
 
+  case SCHED_PIPE:
+    if (thread->priority != 0) {
+      thread->priority--;
+    }
   break;
 
   case SCHED_USER:
@@ -343,14 +360,24 @@ switch(cause)
   
   case SCHED_MUTEX:
 
-  sched_boostThreads;      
+    if (thread->priorityInversionMode == 0){
 
+      thread->priorityInversionMode = 1;
+      thread->prevPriority = thread->priority;
+    }
 
+    if (thread->priority < QUEUE_LEVELS-1) {
+      thread->priority++;
+    }
+    
   break;
 
   default:
+  //Cases not handled yet
   break;
   }
+
+
 
   if (boostTimer>BOOST_PERIOD) {
     boostTimer=0;
@@ -549,8 +576,8 @@ void gain(int preempt)
   if(preempt) preempt_on;
 
   /* Set a 1-quantum alarm */
-  int powbios = pow(2,current->priority);
-  bios_set_timer(QUANTUM*powbios);
+  //int powbios = pow(2,current->priority);
+  bios_set_timer(QUANTUM + ((QUANTUM*current->priority))/QUANTUM_SCALING_VALUE);
 }
 
 
@@ -616,14 +643,13 @@ void run_scheduler()
 }
 
 
-static void sched_boostThreads(){
+void sched_boostThreads(){
 
   int i;
   for (i=0;i<QUEUE_LEVELS-1;i++){
 
-    if (!is_rlist_empty(&SCHED[i+1])){
 
-      MSG("I AM WORKING");
+    if (!is_rlist_empty(&SCHED[i+1])){
 
       rlnode* sel = rlist_pop_front(&SCHED[i+1]);
       sel->tcb->priority--;

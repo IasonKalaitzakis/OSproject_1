@@ -53,12 +53,12 @@ typedef struct process_control_block {
 
   rlnode children_node;   /**< Intrusive node for @c children_list */
   rlnode exited_node;     /**< Intrusive node for @c exited_list */
+  // rlnode PTCB_node;
   CondVar child_exit;     /**< Condition variable for @c WaitChild */
 
   FCB* FIDT[MAX_FILEID];  /**< The fileid table of the process */
 
 } PCB;
-
 
 typedef struct process_thread_control_block {
   int exitVal;
@@ -69,8 +69,11 @@ typedef struct process_thread_control_block {
   int refcount;
   rlnode ptcb_node;
   Thread_state state;  /**if thread is detached or exited*/
+
+  CondVar thread_exit; 
   
 } PTCB;
+
 
 /**
   @brief Initialize the process table.
@@ -105,5 +108,6 @@ PCB* get_pcb(Pid_t pid);
 Pid_t get_pid(PCB* pcb);
 
 /** @} */
+
 
 #endif

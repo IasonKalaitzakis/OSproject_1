@@ -1,4 +1,4 @@
- /*
+/*
  *  Scheduler API and implementation 
  *
  */
@@ -102,7 +102,8 @@ typedef struct thread_control_block
   Thread_phase phase;    /**< The phase of the thread */
 
   int priority; /** The priority of the thread*/
-  
+  int prevPriority;
+  int priorityInversionMode;
 
   void (*thread_func)();   /**< The function executed by this thread */
 
@@ -243,14 +244,14 @@ void yield(enum SCHED_CAUSE cause);
 */
 void run_scheduler(void); 
 
-static void sched_boostThreads();
-
 /**
   @brief Initialize the scheduler.
 
    This function is called during kernel initialization.
  */
 void initialize_scheduler(void); 
+
+void sched_boostThreads();
 
 
 /**
