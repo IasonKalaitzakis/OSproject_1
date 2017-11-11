@@ -108,27 +108,26 @@ Tid_t sys_ThreadSelf()
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
 	int join_result;
+  int res;
   PCB* curproc = CURPROC; 
   //PTCB* curproc_ptcb;
   //curproc_ptcb = acquire_PTCB;  
 
   TCB* childthread = (TCB*) tid;
+  TCB* curthread = CURTHREAD;
   PTCB* child_ptcb = childthread->owner_ptcb;
 
   /*Legallity Checks*/
-  if (tid == get_pid(curproc)){
-
+  if (curthread == childthread){
     return -1;
 
   }
 
   if (rlist_find(&curproc->list_of_PTCBS,childthread,NULL)  || child_ptcb == NULL){
-
     return -1;
   }
 
   if (childthread->state == EXITED || childthread->state == DETACHED){
-
     return -1; 
   }
 
@@ -139,7 +138,13 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
   kernel_unlock(); 
   join_result = kernel_wait(&curproc->child_exit, SCHED_USER);
   kernel_lock();
-  
+
+  if (join_result == 0) {
+    return -1;
+  } else {
+    res = 0;
+  }
+
   child_ptcb->refcount--;
   
   if(exitval != NULL){
@@ -147,11 +152,11 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
   }
 
   release_PTCB(child_ptcb);
-
+  
 
  // waitpid();
 
-  return join_result;
+  return res;
 }
 
 /**
