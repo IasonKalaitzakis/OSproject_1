@@ -39,6 +39,8 @@ static inline void initialize_PCB(PCB* pcb)
   for(int i=0;i<MAX_FILEID;i++)
     pcb->FIDT[i] = NULL;
 
+  pcb->referenceCounting = 0;
+
   rlnode_init(& pcb->children_list, NULL);
   rlnode_init(& pcb->exited_list, NULL);
   rlnode_init(& pcb->list_of_PTCBS, NULL); /** Initialize list of PTCBS*/

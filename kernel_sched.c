@@ -389,9 +389,13 @@ switch(cause)
   int i;
   rlnode * sel = 0;
   for(i = 0;i<QUEUE_LEVELS;i++){
-    sel = rlist_pop_front(& SCHED[i]);
-    if (sel != 0) {
+    if (!is_rlist_empty(&SCHED[i])){
+
+      sel = rlist_pop_front(& SCHED[i]);
       break;
+    }
+    if (i==QUEUE_LEVELS-1){
+      return NULL; 
     }
   }
 
