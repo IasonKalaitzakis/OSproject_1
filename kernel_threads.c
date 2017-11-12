@@ -46,11 +46,7 @@ void free_PTCB(PTCB* ptcb)
 {
   TCB* tcb = ptcb->tcb;
   tcb->owner_pcb->referenceCounting--;
-  rlnode* ptcb_node = rlist_find(&CURPROC->list_of_PTCBS, ptcb,NULL);
-  if (ptcb_node != NULL) {
-    rlist_remove(ptcb_node);
-  }
-  //free(ptcb->tcb);
+  rlist_remove(&ptcb->ptcb_node);
   free(ptcb);
 }
 
@@ -191,28 +187,28 @@ void sys_ThreadExit(int exitval)
   PTCB* curptcb = curthread->owner_ptcb;
   PCB* curpcb = curthread->owner_pcb;
 
-  if(curptcb->args) {
-    //free(curptcb->args);
-    curptcb->args = NULL;
-  }
-
-
   if (curthread != curthread->owner_pcb->main_thread) {
       curptcb->exitVal = exitval;
+
+      while(curptcb->refcount == 1)
+      {
+        kernel_unlock();
+        yield(SCHED_QUANTUM);
+        kernel_lock();
+      }
+
       kernel_broadcast(& curptcb->thread_exit); 
       curptcb->state = EXITED;
-      curptcb->tcb->state = EXITED;
-      curptcb->refcount--;
       release_PTCB(curptcb);
+      kernel_sleep(EXITED,SCHED_USER);
   } else {
     if (curthread == curthread->owner_pcb->main_thread) {
       while(curpcb->referenceCounting==1) {
         PTCB* ptcb_next = curpcb->list_of_PTCBS.next->ptcb;
-        ThreadJoin((Tid_t)ptcb_next->tcb,NULL);
+        sys_ThreadJoin((Tid_t)ptcb_next->tcb,NULL);
       }
       curptcb->exitVal = exitval;
       curptcb->state = EXITED;
-      curptcb->tcb->state = EXITED;
       curptcb->refcount--;
       release_PTCB(curptcb);
       sys_Exit(exitval);
@@ -221,5 +217,4 @@ void sys_ThreadExit(int exitval)
   //if (is_rlist_empty(& curpcb->list_of_PTCBS)) {
     //release_PCB(curpcb);
   //}
-  //kernel_sleep(EXITED,SCHED_USER);
 }

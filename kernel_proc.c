@@ -125,7 +125,8 @@ void start_main_thread()
   void* args = CURPROC->args;
 
   exitval = call(argl,args);
-  Exit(exitval);
+  ThreadExit(exitval);
+  // Exit(exitval);
 }
 
 
@@ -135,7 +136,7 @@ void start_main_thread()
 Pid_t sys_Exec(Task call, int argl, void* args)
 {
   PCB *curproc, *newproc;
-  PTCB* curptcb;
+  PTCB* curptcb = acquire_PTCB();
   
   /* The new process PCB */
   newproc = acquire_PCB();
