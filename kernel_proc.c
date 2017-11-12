@@ -125,8 +125,8 @@ void start_main_thread()
   void* args = CURPROC->args;
 
   exitval = call(argl,args);
-  ThreadExit(exitval);
-  // Exit(exitval);
+  //ThreadExit(exitval);
+   Exit(exitval);
 }
 
 

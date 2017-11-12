@@ -114,7 +114,6 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
 
   TCB* childthread = (TCB*) tid;
   TCB* curthread = CURTHREAD;
-  Thread_state curstate = childthread->state;
   PTCB* child_ptcb = childthread->owner_ptcb;
 
   /*Legallity Checks*/
