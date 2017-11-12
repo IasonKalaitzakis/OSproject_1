@@ -202,8 +202,9 @@ void sys_ThreadExit(int exitval)
       kernel_broadcast(& curptcb->thread_exit); 
       curptcb->state = EXITED;
       curptcb->tcb->state = EXITED;
-      curptcb->refcount--;
       release_PTCB(curptcb);
+      curptcb->refcount--;
+
   } else {
     if (curthread == curthread->owner_pcb->main_thread) {
       curptcb->exitVal = exitval;
@@ -212,12 +213,13 @@ void sys_ThreadExit(int exitval)
           kernel_broadcast(& curptcb->thread_exit); 
           curptcb->state = EXITED;
           curptcb->tcb->state = EXITED;
-          curptcb->refcount--;
+         
         } else {
           kernel_wait(&curptcb->thread_exit,SCHED_USER);
         }
       }
       release_PTCB(curptcb);
+      curptcb->refcount--;
     }
   }
 
