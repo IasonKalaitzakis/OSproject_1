@@ -135,6 +135,7 @@ void start_main_thread()
 Pid_t sys_Exec(Task call, int argl, void* args)
 {
   PCB *curproc, *newproc;
+  PTCB* curptcb;
   
   /* The new process PCB */
   newproc = acquire_PCB();
@@ -175,7 +176,11 @@ Pid_t sys_Exec(Task call, int argl, void* args)
   else
     newproc->args=NULL;
   
-
+  curptcb->task = call;
+  curptcb->argl = argl;
+  curptcb->args = args;
+  rlist_push_back(&newproc->list_of_PTCBS, & curptcb->ptcb_node);
+  newproc->referenceCounting++;
   /* 
     Create and wake up the thread for the main function. This must be the last thing
     we do, because once we wakeup the new thread it may run! so we need to have finished
@@ -183,6 +188,8 @@ Pid_t sys_Exec(Task call, int argl, void* args)
    */
   if(call != NULL ) {
     newproc->main_thread = spawn_thread(newproc, start_main_thread);
+    newproc->main_thread->owner_ptcb = curptcb;
+    curptcb->tcb = newproc->main_thread;
     wakeup(newproc->main_thread);
   }
 

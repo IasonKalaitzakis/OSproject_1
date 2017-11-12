@@ -74,6 +74,9 @@ typedef struct process_thread_control_block {
   
 } PTCB;
 
+void release_PCB(PCB* pcb);
+PTCB* acquire_PTCB();
+
 
 /**
   @brief Initialize the process table.
