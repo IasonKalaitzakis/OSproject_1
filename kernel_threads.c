@@ -70,13 +70,15 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
   //if (curproc_ptcb == NULL) goto finish;
   curproc_ptcb->task = task;
   curproc_ptcb->argl = argl;
-  if (args!=NULL) {
-    curproc_ptcb->args = malloc(argl);
-    memcpy(curproc_ptcb->args, args, argl);
-  }
-  else
-    curproc_ptcb->args = NULL;
+  //if (args!=NULL) {
+  //  curproc_ptcb->args = malloc(argl);
+  //  memcpy(curproc_ptcb->args, args, argl);
+  //}
+  //else
+  //  curproc_ptcb->args = NULL;
   //rlnode_init(&newproc_PTCB->ptcb_node, newproc_PTCB);
+
+  curproc_ptcb->args = args; 
 
   rlist_push_back(& curproc->list_of_PTCBS, & curproc_ptcb->ptcb_node);
   curproc->referenceCounting++;
@@ -88,6 +90,7 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
   } 
 
   if (curproc_ptcb!=NULL) {
+  
 	return (Tid_t) curproc_ptcb->tcb; /** Return TCB of new Thread*/
   } else {
     return NOPROC;
@@ -122,8 +125,8 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
     return -1;
 
   }
-
-  if (rlist_find(&curproc->list_of_PTCBS,childthread,NULL)  || child_ptcb == NULL){
+  //childthread->owner_ptcb != curthread->owner_ptcb
+  if ((childthread->owner_pcb != curthread->owner_pcb)  || child_ptcb == NULL){
     return -1;
   }
 
@@ -188,10 +191,10 @@ void sys_ThreadExit(int exitval)
   PTCB* curptcb = curthread->owner_ptcb;
   PCB* curpcb = curthread->owner_pcb;
 
-  if(curptcb->args) {
-    free(curptcb->args);
-    curptcb->args = NULL;
-  }
+ // if(curptcb->args) {
+  //  free(curptcb->args);
+ //   curptcb->args = NULL;
+  //}
 
 
   if (curthread != curthread->owner_pcb->main_thread) {
