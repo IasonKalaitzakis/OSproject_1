@@ -18,12 +18,19 @@ typedef struct pipe_control_block {
 
 
 
-void initialize_FCB(FCB* fcb){
+void initialize_FCB(FCB* fcb, PipeCB* pipecb, int readerFlag){
 
 	fcb->refcount = 1;  			/**< @brief Reference counter. */
-  	fcb->streamobj = ;			/**< @brief The stream object (e.g., a device) */
-  	file_ops* streamfunc;		/**< @brief The stream implementation methods */
-  	rlnode freelist_node;
+  	fcb->streamobj = pipecb;			/**< @brief The stream object (e.g., a device) */
+
+	if (readerFlag == 0){
+		fcb->streamfunc = writer_ops;
+	}
+	else {
+		fcb->streamfunc = reader_ops;
+	}
+  	rlnode_init(& fcb->freelist_node, fcb);
+
 
 } 
 
@@ -48,8 +55,35 @@ int pipe_reader_write(){return -1;}
 int pipe_writer_read(){return -1;}
 int pipe_open(){return -1;}
 
+int pipe_write(){
+
+
+}
+
+int pipe_read(){
+
+
+
+}
+
+int pipe_writer_close(){
+
+
+
+}
+
+
+int pipe_reader_close(){
+
+
+
+	
+}
+
 int sys_Pipe(pipe_t* pipe)
 {	
+
+	PipeCB* pipecb = (PipeCB*)xmalloc(sizeof(PipeCB));
 
 	Fid_t arrayOfFIDs[2];
 	FCB* arrayOfFCBPointers[2];
@@ -58,8 +92,35 @@ int sys_Pipe(pipe_t* pipe)
 	pipe->read = arrayOfFIDs[0];
 	pipe->write = arrayOfFIDs[1];
 
+	if (pipe->read ==NULL || pipe_write==NULL){
+		return -1;
+	}
+
 	readerFCB = arrayOfFCBPointers[0];
 	writerFCB = arrayOfFCBPointers[1];
 
+	createPipe(writerFCB,readerFCB, pipecb);
+
+	initialize_FCB(readerFCB,pipecb,1);
+	initialize_FCB(writerFCB,pipecb,0);
+
+
+	return 0;
+
 }
 
+
+void createPipe(FCB* writerFCB, FCB* readerFCB, PipeCB* pipecb){
+
+	pipecb->writePtr = writerFCB;
+	pipecb->readerPtr = readerFCB;
+
+	pipecb->hasData = COND_INIT;
+	pipecb->hasSpace = COND_INIT;
+
+	pipecb->writerHead = pipecb->buffer[0];
+	pipecb->readerHead = pipecb->buffer[0];
+
+	return;
+
+}
