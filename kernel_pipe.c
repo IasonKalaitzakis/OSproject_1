@@ -6,14 +6,16 @@
 typedef struct pipe_control_block {
 
 	char buffer[BUFFER_SIZE];
-	char* writerHead;
-	char* readerHead;
+	int writerHead;
+	int readerHead;
 
 	CondVar hasSpace;
 	CondVar hasData;
 
 	FCB* writePtr;
 	FCB* readerPtr;
+
+	int bufferChars;
 }PipeCB;
 
 
@@ -55,14 +57,107 @@ int pipe_reader_write(){return -1;}
 int pipe_writer_read(){return -1;}
 int pipe_open(){return -1;}
 
-int pipe_write(){
+int pipe_write(void* pipe, char *buf, unsigned int size){
+
+	PipeCB* pipecb = (PipeCB*) pipe;
+	int	bytesWritten = 0;
+
+	if(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==BUFFER_SIZE){
+		kernel_wait(&pipecb->hasSpace, SCHED_PIPE);                                                             
+	}
+
+	
 
 
 }
 
-int pipe_read(){
+int pipe_read(void* pipe, char *buf, unsigned int size){
+
+	PipeCB* pipecb = (PipeCB*) pipe;
+	int	bytesCopied = 0;
 
 
+	if(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
+		kernel_wait(&pipecb->hasData, SCHED_PIPE);                                                             
+	}
+
+	if (pipecb->bufferChars<0){
+		fprintf(stderr, "Buffer chars fell below 0");
+	}
+
+	//Buffer is not linear (loops around 0)
+	if(pipecb->readerHead>pipecb->writerHead){
+
+		//Reader index crosses 0 and starts over
+		if(pipecb->readerHead+size>BUFFER_SIZE-1){
+
+			//There are enough chars to return size number of chars
+			//if ((BUFFER_SIZE - pipecb->readerHead) + pipecb->writerHead >= size){
+			if (pipecb->bufferChars>=size){
+
+				bytesCopied = BUFFER_SIZE - pipecb->readerHead;
+				memmove(buf, &pipecb->buffer[readerHead], bytesCopied);
+				pipecb->readerHead = 0;
+				bytesCopied = size - bytesCopied;
+				memmove(buf+bytesCopied, &pipecb->buffer[readerHead], bytesCopied);
+				pipecb->readerHead = bytesCopied;
+				pipecb->bufferChars = pipecb->bufferChars - size;
+				bytesCopied = size;
+				
+			}
+			//Size is bigger than available chars
+			else{
+
+				bytesCopied = BUFFER_SIZE - pipecb->readerHead;
+				memmove(buf, &pipecb->buffer[readerHead], bytesCopied);
+				pipecb->readerHead = 0;
+				memmove(buf+bytesCopied, &pipecb->buffer[readerHead], pipecb->writerHead);
+				pipecb->readerHead = pipecb->writerHead;
+				bytesCopied = bytesCopied + pipecb->writerHead;
+				pipecb->bufferChars = pipecb->bufferChars - bytesCopied;
+				
+			}
+		}
+
+		//Reader index doesnt cross 0 (also means that the size will definitely be enough)
+		else {
+
+			bytesCopied = size;
+			memmove(buf, &pipecb->buffer[readerHead], bytesCopied);
+			pipecb->readerHead = pipecb->readerHead + bytesCopied;
+			pipecb->bufferChars = pipecb->bufferChars - bytesCopied;
+			
+		}
+	}
+
+	//Buffer doesnt loop around 0
+	else {
+
+		//Size is bigger than available chars
+		if(pipecb->readerHead + size > pipecb->writerHead){
+
+			bytesCopied = pipecb->writerHead-pipecb->readerHead;
+
+			memmove(buf, &pipecb->buffer[readerHead], bytesCopied);
+			pipecb->readerHead = pipecb->writerHead;
+			pipecb->bufferChars = pipecb->bufferChars - bytesCopied;
+			
+		}
+
+		//Buffer has enough chars for the size
+		else{
+
+			bytesCopied = size;
+			memmove(buf, &pipecb->buffer[readerHead], bytesCopied);
+			pipecb->bufferChars = pipecb->bufferChars - bytesCopied;
+			pipecb->readerHead = pipecb->readerHead + bytesCopied;
+			
+		} 
+	}
+
+	kernel_broadcast(&pipecb->hasSpace);
+	
+	return bytesCopied;
 
 }
 
@@ -77,7 +172,7 @@ int pipe_reader_close(){
 
 
 
-	
+
 }
 
 int sys_Pipe(pipe_t* pipe)
@@ -118,8 +213,9 @@ void createPipe(FCB* writerFCB, FCB* readerFCB, PipeCB* pipecb){
 	pipecb->hasData = COND_INIT;
 	pipecb->hasSpace = COND_INIT;
 
-	pipecb->writerHead = pipecb->buffer[0];
-	pipecb->readerHead = pipecb->buffer[0];
+	pipecb->writerHead = 0;
+	pipecb->readerHead = 0;
+	bufferChars = 0;
 
 	return;
 
