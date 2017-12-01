@@ -1157,8 +1157,15 @@ BOOT_TEST(test_pipe_multi_producer,
 	"Test blocking in the pipe by 10 producers and single consumer sending 10Mbytes of data."
 	)
 {
+
+
 	pipe_t pipe;
+
+
 	ASSERT(Pipe(&pipe)==0);	
+
+
+
 
 	/* First, make pipe.read be zero. We cannot just Dup, because we may close pipe.write */
 	if(pipe.read != 0) {
@@ -1172,16 +1179,24 @@ BOOT_TEST(test_pipe_multi_producer,
 		Dup2(pipe.read, 0);
 		Close(pipe.read);
 	}
+
+
 	if(pipe.write!=1)  {
 		Dup2(pipe.write, 1);
 		Close(pipe.write);
 	}
 
+
 	int N = 1000000;
 	for(int i=0;i<10;i++)
 		ASSERT(Exec(data_producer, sizeof(N), &N)!=NOPROC);
+
+
+
 	N = 10*N;
 	ASSERT(Exec(data_consumer, sizeof(N), &N)!=NOPROC);
+
+
 
 	Close(0);
 	Close(1);

@@ -265,14 +265,20 @@ static Pid_t wait_for_any_child(int* status)
     goto finish;
   }
 
+
+
   while(is_rlist_empty(& parent->exited_list)) {
     kernel_wait(& parent->child_exit, SCHED_USER);
   }
+
+  
 
   PCB* child = parent->exited_list.next->pcb;
   assert(child->pstate == ZOMBIE);
   cpid = get_pid(child);
   cleanup_zombie(child, status);
+
+
 
 finish:
   return cpid;
@@ -282,11 +288,13 @@ finish:
 Pid_t sys_WaitChild(Pid_t cpid, int* status)
 {
   /* Wait for specific child. */
+
   if(cpid != NOPROC) {
     return wait_for_specific_child(cpid, status);
   }
   /* Wait for any child */
   else {
+
     return wait_for_any_child(status);
   }
 
