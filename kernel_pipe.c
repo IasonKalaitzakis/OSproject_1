@@ -90,7 +90,7 @@ int pipe_write(void* pipe,const char *buf, unsigned int size){
 	if(pipecb->flagNoReaders == 1){return -1;}
 
 
-	if(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==BUFFER_SIZE){
+	while(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==BUFFER_SIZE){
 		kernel_wait(&pipecb->hasSpace, SCHED_PIPE);                                                             
 	}
 
@@ -175,7 +175,7 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 	}
 
 
-	if(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
+	while(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
 		kernel_wait(&pipecb->hasData, SCHED_PIPE);                                                             
 	}
 
