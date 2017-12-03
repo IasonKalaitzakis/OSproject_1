@@ -4,6 +4,11 @@
 
 #include <stdint.h>
 
+
+
+
+
+
 /**
   @file tinyos.h
   @brief Public kernel API
@@ -60,6 +65,16 @@ typedef uintptr_t Tid_t;
 
 /** @brief The invalid thread ID */
 #define NOTHREAD ((Tid_t)0)
+
+typedef enum{
+  UNBOUND,  
+  PEER,       
+  LISTENER   
+}SOCKET_TYPE;
+
+
+
+
 
 
 /*******************************************
@@ -782,5 +797,8 @@ void boot(unsigned int ncores, unsigned int terminals, Task boot_task, int argl,
 
 
 /** @} */
+
+
+
 
 #endif

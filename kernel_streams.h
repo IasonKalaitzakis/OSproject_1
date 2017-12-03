@@ -130,4 +130,31 @@ FCB* get_fcb(Fid_t fid);
 
 /** @} */
 
+
+
+
+#define BUFFER_SIZE 10000
+
+
+typedef struct pipe_control_block {
+
+  char buffer[BUFFER_SIZE];
+  int writerHead;
+  int readerHead;
+
+  CondVar hasSpace;
+  CondVar hasData;
+
+  FCB* writePtr;
+  FCB* readerPtr;
+
+  int bufferChars;
+
+  int flagNoWriters;
+  int flagNoReaders;
+
+  //Mutex m;
+
+}PipeCB;
+
 #endif

@@ -7,28 +7,6 @@
 
 
 
-#define BUFFER_SIZE 10000
-
-typedef struct pipe_control_block {
-
-	char buffer[BUFFER_SIZE];
-	int writerHead;
-	int readerHead;
-
-	CondVar hasSpace;
-	CondVar hasData;
-
-	FCB* writePtr;
-	FCB* readerPtr;
-
-	int bufferChars;
-
-	int flagNoWriters;
-	int flagNoReaders;
-
-	//Mutex m;
-
-}PipeCB;
 
 
 int pipe_write(void* pipe,const char *buf, unsigned int size);
@@ -39,6 +17,7 @@ void* pipe_open(uint minor);
 int pipe_reader_close(void* pipe);
 int pipe_writer_close(void* pipe);
 void createPipe(FCB* writerFCB, FCB* readerFCB, PipeCB* pipecb);
+
 
 
 
@@ -72,14 +51,12 @@ void initialize_FCB(FCB* fcb, PipeCB* pipecb, int readerFlag){
 	}
   	rlnode_init(& fcb->freelist_node, fcb);
 
-
 } 
 
 
 int pipe_reader_write(void* pipe,const char *buf, unsigned int size){return -1;}
 int pipe_writer_read(void* pipe, char *buf, unsigned int size){return -1;}
-void* pipe_open(uint minor){return NULL;
-}
+void* pipe_open(uint minor){return NULL;}
 
 int pipe_write(void* pipe,const char *buf, unsigned int size){
 
