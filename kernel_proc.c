@@ -50,6 +50,25 @@ static inline void initialize_PCB(PCB* pcb)
   pcb->child_exit = COND_INIT;
 }
 
+void initialize_procinfo(procinfo* procInfo) {
+  PCB* cur_pcb = CURPROC;
+  procInfo->pid =get_pid(cur_pcb);
+  procInfo->ppid = get_pid(cur_pcb->parent);
+
+  if (cur_pcb->pstate == ALIVE) {
+    procInfo->alive =1; 
+  } else {
+    if (cur_pcb->pstate == ZOMBIE) {
+      procInfo->alive =0; 
+    }
+  }
+
+  procInfo->thread_count = cur_pcb->referenceCounting;
+  procInfo->main_task = cur_pcb->main_task;
+  procInfo->argl = cur_pcb->argl;
+  memcpy(procInfo->args, cur_pcb->args, procInfo->argl);
+}
+
 
 static PCB* pcb_freelist;
 
