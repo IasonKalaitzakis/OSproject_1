@@ -108,20 +108,16 @@ void* socket_open(uint minor){return NULL;}
 
 int sys_Listen(Fid_t sock)
 {
-	SocketCB* socketcb = get_fcb(sock)->streamobj;					//????????????
-	
-	
-	if(socketcb->type == LISTENER){
-		return -1;
-	}
 
-	if (socketcb == NULL){
-		return -1;
-	}
-
-	if(socketcb->port == NOPORT){
-		return -1; 
-	}
+	FCB* fcb = get_fcb(sock);
+	SocketCB* socketcb;
+	if(fcb != NULL){
+		socketcb = fcb->streamobj;
+	} else {return -1;}
+	if (fcb->streamfunc != &socket_ops){return -1;}
+	if(socketcb->type == LISTENER){return -1;}
+	if (socketcb == NULL){return -1;}
+	if(socketcb->port == NOPORT){return -1;}
 
 	socketcb->type = LISTENER;
 
@@ -130,8 +126,8 @@ int sys_Listen(Fid_t sock)
 	}
 	else {return -1;}
 
-	socketcb->reqs = COND_INIT;
-  	rlnode_init(&socketcb->reqs_queue, NULL);
+	socketcb->Listener.reqs = COND_INIT;
+  	rlnode_init(&socketcb->Listener.reqs_queue, NULL);
 
 	//kernel_wait(&socketcb->reqs, SCHED_PIPE);                                                             
 
@@ -142,14 +138,86 @@ int sys_Listen(Fid_t sock)
 
 
 Fid_t sys_Accept(Fid_t lsock)
-{
-	return NOFILE;
+{	
+	FCB* lfcb = get_fcb(lsock);
+	SocketCB* listener_socket;
+	if(lfcb != NULL){
+		listener_socket = lfcb->streamobj;
+	} else {return NOFILE;}
+	if (lfcb->streamfunc != &socket_ops){return NOFILE;}
+	if (listener_socket == NULL){return NOFILE;}
+
+	FCB* fcb_conn = get_fcb(sys_Socket(listener_socket->port));
+	SocketCB* conn_socket;
+	if(fcb_conn != NULL){
+		conn_socket = fcb_conn->streamobj;
+	} else {return NOFILE;}
+
+	if(is_rlist_empty(&listener_socket->Listener.reqs_queue)){
+		kernel_wait(&listener_socket->Listener.reqs, SCHED_PIPE);  
+	}
+
+	rlnode* node = rlist_pop_front(&listener_socket->Listener.reqs_queue);
+	node->connrq->accepted = 1;
+	conn_socket->type = PEER;
+
+	SocketCB* peer_socket = node->connrq->client_socket;
+	conn_socket->Peer.peerPtr = peer_socket;
+
+	//PipeCB
+
+	//conn_socket->Peer.pipe_send
+	//conn_socket->Peer.pipe_receive
+
+
+	kernel_signal(&node->connrq->conn_cv);
+
+	
+
 }
 
 
 int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 {
-	return -1;
+	
+	FCB* fcb = get_fcb(sock);
+	SocketCB* socketcb;
+	if(fcb != NULL){
+		socketcb = fcb->streamobj;
+	} else {return -1;}
+	if (fcb->streamfunc != &socket_ops){return -1;}
+	if (socketcb == NULL){return -1;}
+	if(socketcb->port == NOPORT || socketcb->port > MAX_PORT || socketcb->port <0){return -1;}
+
+	//socketcb->type = UNBOUND;
+
+	SocketCB* listener = port_map[port];
+	if (listener == NULL){return -1;}
+
+	Connection_RQ* connrq = (Connection_RQ*)xmalloc(sizeof(Connection_RQ));
+
+	connrq->client_socket = socketcb;
+	rlnode_init(& connrq->connection_node, connrq);		
+	connrq->conn_cv = COND_INIT;
+	connrq->accepted = 0;
+
+	rlist_push_back(&listener->Listener.reqs_queue, &connrq->connection_node);
+
+	kernel_signal(&listener->Listener.reqs);
+
+	int result;
+
+	while(connrq->accepted==0){
+		result = kernel_timedwait(&connrq->conn_cv, SCHED_PIPE, timeout);
+		if(result == 1 && connrq->accepted==0){
+			return -1;
+		}
+	}
+
+	socketcb->type = PEER;
+
+	return 0;
+
 }
 
 

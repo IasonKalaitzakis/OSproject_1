@@ -16,7 +16,7 @@ int pipe_writer_read(void* pipe, char *buf, unsigned int size);
 void* pipe_open(uint minor);
 int pipe_reader_close(void* pipe);
 int pipe_writer_close(void* pipe);
-void createPipe(FCB* writerFCB, FCB* readerFCB, PipeCB* pipecb);
+PipeCB* createPipe(FCB* writerFCB, FCB* readerFCB);
 
 
 
@@ -274,7 +274,6 @@ int pipe_reader_close(void* pipe){
 int sys_Pipe(pipe_t* pipe)
 {	
 
-	PipeCB* pipecb = (PipeCB*)xmalloc(sizeof(PipeCB));
 
 	Fid_t arrayOfFIDs[2];
 	FCB* arrayOfFCBPointers[2];
@@ -285,10 +284,10 @@ int sys_Pipe(pipe_t* pipe)
 	pipe->read = arrayOfFIDs[0];
 	pipe->write = arrayOfFIDs[1];
 
-	pipecb->readerPtr = arrayOfFCBPointers[0];
-	pipecb->writePtr = arrayOfFCBPointers[1];
+	PipeCB* pipecb = createPipe(arrayOfFCBPointers[1],arrayOfFCBPointers[0]);
 
-	createPipe(pipecb->writePtr,pipecb->readerPtr, pipecb);
+	//pipecb->readerPtr = arrayOfFCBPointers[0];
+	//pipecb->writePtr = arrayOfFCBPointers[1];
 
 	initialize_FCB(pipecb->readerPtr,pipecb,1);
 	initialize_FCB(pipecb->writePtr,pipecb,0);
@@ -299,7 +298,9 @@ int sys_Pipe(pipe_t* pipe)
 }
 
 
-void createPipe(FCB* writerFCB, FCB* readerFCB, PipeCB* pipecb){
+PipeCB* createPipe(FCB* writerFCB, FCB* readerFCB){
+
+	PipeCB* pipecb = (PipeCB*)xmalloc(sizeof(PipeCB));
 
 	pipecb->writePtr = writerFCB;
 	pipecb->readerPtr = readerFCB;
@@ -316,6 +317,6 @@ void createPipe(FCB* writerFCB, FCB* readerFCB, PipeCB* pipecb){
 	//pipecb->m = MUTEX_INIT;
  
 
-	return;
+	return pipecb;
 
 }

@@ -136,6 +136,7 @@ FCB* get_fcb(Fid_t fid);
 #define BUFFER_SIZE 10000
 
 
+
 typedef struct pipe_control_block {
 
   char buffer[BUFFER_SIZE];
@@ -156,5 +157,7 @@ typedef struct pipe_control_block {
   //Mutex m;
 
 }PipeCB;
+
+PipeCB* createPipe(FCB* writerFCB, FCB* readerFCB);
 
 #endif
