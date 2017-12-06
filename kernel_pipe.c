@@ -239,6 +239,9 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 int pipe_writer_close(void* pipe){
 
 	PipeCB* pipecb = (PipeCB*) pipe;
+
+	if(pipecb == NULL){return -1;}
+
 	kernel_broadcast(&pipecb->hasData);
 
 	pipecb->flagNoWriters = 1;
@@ -260,6 +263,7 @@ int pipe_reader_close(void* pipe){
 	//if (pipecb->flagNoWriters == 0){
 	//	return -1;
 	//}
+	if(pipecb == NULL){return -1;}
 
 	pipecb->flagNoReaders = 1;
 

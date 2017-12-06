@@ -105,7 +105,7 @@ Tid_t sys_ThreadSelf()
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
   int join_result;
-  PCB* curproc = CURPROC; 
+  /////////////////////////////////////////////PCB* curproc = CURPROC; 
   //PTCB* curproc_ptcb;
   //curproc_ptcb = acquire_PTCB;  
   if (tid == NOPROC) {

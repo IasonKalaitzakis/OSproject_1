@@ -73,6 +73,10 @@ typedef enum{
 }SOCKET_TYPE;
 
 
+int pipe_writer_close(void* pipe);
+int pipe_reader_close(void* pipe);
+int pipe_read(void* pipe, char *buf, unsigned int size);
+int pipe_write(void* pipe,const char *buf, unsigned int size);
 
 
 

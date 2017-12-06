@@ -1300,6 +1300,7 @@ BOOT_TEST(test_socket_constructor_illegal_port,
 	ASSERT(Socket(NOPORT-1)==NOFILE);
 	ASSERT(Socket(MAX_PORT+1)==NOFILE);	
 	ASSERT(Socket(MAX_PORT+10)==NOFILE);
+
 	return 0;	
 }
 
@@ -1457,10 +1458,12 @@ BOOT_TEST(test_accept_fails_on_exhausted_fid,
 		return 0;
 	}
 
+
 	Tid_t t = CreateThread(accept_connection, 0, NULL);
 	ASSERT(Connect(cli, 100, 1000)==-1);
 
 	ThreadJoin(t,NULL);
+
 	return 0;
 }
 
