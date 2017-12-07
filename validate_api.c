@@ -1265,6 +1265,7 @@ void check_transfer(Fid_t from, Fid_t to)
 	ASSERT((rc=Write(from,"Hello world", 12))==12);
 	ASSERT((rc=Read(to, buffer, 12))==12);
 	ASSERT((rc=strcmp("Hello world", buffer))==0);
+	//fprintf(stderr, " string: %s", buffer);
 }
 
 

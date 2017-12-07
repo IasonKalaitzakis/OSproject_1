@@ -162,11 +162,15 @@ Fid_t sys_Accept(Fid_t lsock)
 		server_socket = fcb_conn->streamobj;
 	} else {return NOFILE;}
 
+
+
 	if(is_rlist_empty(&listener_socket->Listener.reqs_queue)){
+
 		kernel_wait(&listener_socket->Listener.reqs, SCHED_PIPE);  
 	}
 
 	if (listener_socket == NULL ){return NOFILE;}
+	if (is_rlist_empty(&listener_socket->Listener.reqs_queue)){return NOFILE;}
 
 	rlnode* node = rlist_pop_front(&listener_socket->Listener.reqs_queue);
 	node->connrq->accepted = 1;
@@ -181,6 +185,11 @@ Fid_t sys_Accept(Fid_t lsock)
 	server_socket->Peer.pipe_send = pipe_one;
 	server_socket->Peer.pipe_receive = pipe_two;
 
+	client_socket->type = PEER;
+	client_socket->Peer.peerPtr = &server_socket->Peer;
+	client_socket->Peer.pipe_send = pipe_two;
+	client_socket->Peer.pipe_receive = pipe_one;
+
 	kernel_signal(&node->connrq->conn_cv);
 
 	return server_fid;
@@ -189,7 +198,7 @@ Fid_t sys_Accept(Fid_t lsock)
 
 int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 {
-	
+
 	FCB* fcb = get_fcb(sock);
 	SocketCB* socketcb;
 	if(fcb != NULL){
@@ -204,14 +213,20 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 		fprintf(stderr,"Null socket");
 		return -1;}
 	if(socketcb->port > MAX_PORT || socketcb->port <0){
-		fprintf(stderr,"Bad port");
+		fprintf(stderr,"Bad port or no port?");
+		return -1;}
+	if(port > MAX_PORT || port <0 || port == NOPORT){
+		//fprintf(stderr,"Bad port or no port?");
+		return -1;}
+	if(socketcb->type == LISTENER){
+		//fprintf(stderr,"Given port is listener");
 		return -1;}
 
 	//socketcb->type = UNBOUND;
 
 	SocketCB* listener = port_map[port];
-	if (listener->type != LISTENER){
-		fprintf(stderr,"Port doesnt have a listener");
+	if (listener == NULL){
+		//fprintf(stderr,"Port doesnt have a listener");
 		return -1;}
 
 	Connection_RQ* connrq = (Connection_RQ*)xmalloc(sizeof(Connection_RQ));
@@ -234,12 +249,8 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 			fprintf(stderr,"result == 1 && connrq->accepted==0");
 			return -1;
 		}
+		if(result == 0){return -1;}
 	}
-
-	socketcb->type = PEER;
-	socketcb->Peer.peerPtr = &listener->Peer;
-	socketcb->Peer.pipe_send = listener->Peer.pipe_receive;
-	socketcb->Peer.pipe_receive = listener->Peer.pipe_send;
 
 	return 0;
 
@@ -265,12 +276,13 @@ int sys_ShutDown(Fid_t sock, shutdown_mode how)
 
 		case SHUTDOWN_WRITE:
 
+
 			pipe_writer_close(socketcb->Peer.pipe_send);
 			socketcb->Peer.pipe_send = NULL;
 			break;
 
 		case SHUTDOWN_BOTH:
-
+			
 			pipe_writer_close(socketcb->Peer.pipe_send);
 			pipe_reader_close(socketcb->Peer.pipe_receive);
 			socketcb->Peer.pipe_receive = NULL;
