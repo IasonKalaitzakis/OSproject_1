@@ -147,10 +147,11 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 	PipeCB* pipecb = (PipeCB*) pipe;
 	int	bytesCopied = 0;
 
+	if(pipecb == NULL){return -1;}
+
 	if(pipecb->flagNoWriters == 1 && pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
 		return 0;
 	}
-
 
 	while(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
 		kernel_wait(&pipecb->hasData, SCHED_PIPE);                                                             

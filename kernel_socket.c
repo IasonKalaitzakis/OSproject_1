@@ -271,6 +271,7 @@ int sys_ShutDown(Fid_t sock, shutdown_mode how)
 		case SHUTDOWN_READ:
 
 			pipe_reader_close(socketcb->Peer.pipe_receive);
+			pipe_writer_close(socketcb->Peer.pipe_receive);
 			socketcb->Peer.pipe_receive = NULL;
 			break;
 
