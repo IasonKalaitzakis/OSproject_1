@@ -19,6 +19,11 @@
 PCB PT[MAX_PROC];
 unsigned int process_count;
 
+int procInfo_write(void* procInfo,const char *buf, unsigned int size);
+int procInfo_read(void* procInfo, char *buf, unsigned int size);
+void* procInfo_open(uint minor);
+int procInfo_close(void* procInfo);
+
 PCB* get_pcb(Pid_t pid)
 {
   return PT[pid].pstate==FREE ? NULL : &PT[pid];
@@ -49,6 +54,14 @@ static inline void initialize_PCB(PCB* pcb)
   //rlnode_init(& pcb->PTCB_node, pcb); /**Initialize the node*/
   pcb->child_exit = COND_INIT;
 }
+
+static file_ops procInfo_ops = {
+
+    .Open = procInfo_open,
+    .Read = procInfo_read,
+    .Write = procInfo_write,
+    .Close = procInfo_close
+};
 
 void initialize_procinfo(procinfo* procInfo) {
   PCB* cur_pcb = CURPROC;
@@ -378,9 +391,46 @@ void sys_Exit(int exitval)
 }
 
 
+void* procInfo_open(uint minor){return NULL;}
+int procInfo_write(void* procInfo,const char *buf, unsigned int size){return -1;}
+
+int procInfo_read(void* procInfo, char *buf, unsigned int size) {
+
+  procInfoCB* proc_info_cb = (procInfoCB*)procInfo;
+  if (procInfo == NULL) { return -1;}
+  memcpy(buf, &proc_info_cb->procInfo,sizeof(proc_info_cb->procInfo));
+
+  return (sizeof(proc_info_cb->procInfo));
+
+}
+
+int procInfo_close(void* procInfo) {
+  procInfoCB* proc_info_cb = (procInfoCB*)procInfo;
+  if (procInfo == NULL) { return -1;}
+  free(proc_info_cb->procInfo);
+  free(proc_info_cb);
+  return 0;
+}
 
 Fid_t sys_OpenInfo()
 {
-	return NOFILE;
+  FCB* fcb[1];
+  Fid_t fid[1];
+  procInfoCB* proc_info_cb = (procInfoCB*)xmalloc(sizeof(procInfoCB));
+  procinfo* procInfo = (procinfo*)xmalloc(sizeof(procinfo));
+
+  if(FCB_reserve(1, fid, fcb)==0){
+    return NOFILE;
+  }
+
+  proc_info_cb->fcb = fcb[0];
+  initialize_procinfo(procInfo);
+  proc_info_cb->procInfo = procInfo;
+
+  proc_info_cb->fcb->streamobj = proc_info_cb;      
+  proc_info_cb->fcb->streamfunc = &procInfo_ops;
+  rlnode_init(& proc_info_cb->fcb->freelist_node, proc_info_cb->fcb);
+
+	return fid[0];
 }
 

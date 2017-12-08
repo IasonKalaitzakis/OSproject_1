@@ -77,6 +77,12 @@ typedef struct process_thread_control_block {
 void release_PCB(PCB* pcb);
 PTCB* acquire_PTCB();
 
+typedef struct process_info_control_block{
+  procinfo* procInfo;
+  FCB* fcb;
+  int position;
+  
+}procInfoCB;
 
 /**
   @brief Initialize the process table.
