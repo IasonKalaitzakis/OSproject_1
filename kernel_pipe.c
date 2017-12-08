@@ -86,11 +86,26 @@ int pipe_write(void* pipe,const char *buf, unsigned int size){
 				bytesWritten = BUFFER_SIZE - pipecb->writerHead;
 				memmove(&pipecb->buffer[pipecb->writerHead],buf, bytesWritten);
 				pipecb->writerHead = 0;
+
 				bytesWritten = size - bytesWritten;
-				memmove(&pipecb->buffer[pipecb->writerHead],buf+bytesWritten,bytesWritten);
+				int bytes_w = size- bytesWritten;
+
+
+				memmove(&pipecb->buffer[pipecb->writerHead],buf+bytes_w,bytesWritten);
+				//fprintf(stderr," STRING: %s ", buf);
+
 				pipecb->writerHead = bytesWritten;
 				pipecb->bufferChars = pipecb->bufferChars + size;
 				bytesWritten = size;
+
+				//fprintf(stderr," BYTESWRITTEn: %d ", bytesWritten);
+				//for (int i =0;i<4;i++){
+				//	fprintf(stderr," WRITTEN STRING : %s ", pipecb->buffer[i]);
+				//}
+				
+				//fprintf(stderr," STRING: %s ", buf);
+				//fprintf(stderr," STRING DISPLACED: %s ", buf+bytesWritten);
+				//fprintf(stderr," WRITTEN STRING : %s ", pipecb->buffer);
 
 			}
 			//Size is bigger than free array slots
@@ -103,6 +118,7 @@ int pipe_write(void* pipe,const char *buf, unsigned int size){
 				pipecb->writerHead = pipecb->readerHead;
 				bytesWritten = bytesWritten + pipecb->writerHead;
 				pipecb->bufferChars = pipecb->bufferChars + bytesWritten;
+
 			}
 		}
 		//Writer index doesnt cross 0 (also means that the size will definitely be enough)
@@ -112,6 +128,7 @@ int pipe_write(void* pipe,const char *buf, unsigned int size){
 			memmove(&pipecb->buffer[pipecb->writerHead],buf,bytesWritten);
 			pipecb->writerHead = pipecb->writerHead + bytesWritten;
 			pipecb->bufferChars = pipecb->bufferChars + bytesWritten;	
+
 		}
 	}
 
@@ -124,8 +141,8 @@ int pipe_write(void* pipe,const char *buf, unsigned int size){
 			memmove(&pipecb->buffer[pipecb->writerHead],buf, bytesWritten);
 			pipecb->writerHead = pipecb->readerHead;
 			pipecb->bufferChars = pipecb->bufferChars + bytesWritten;
-		}
 
+		}
 		//Buffer has enough chars for the size
 		else{
 
@@ -133,8 +150,11 @@ int pipe_write(void* pipe,const char *buf, unsigned int size){
 			memmove(&pipecb->buffer[pipecb->writerHead],buf, bytesWritten);
 			pipecb->bufferChars = pipecb->bufferChars + bytesWritten;
 			pipecb->writerHead = pipecb->writerHead + bytesWritten;
+
 		} 
-	}
+	}	
+
+	//fprintf(stderr,"-%d-", pipecb->bufferChars);
 
  	kernel_broadcast(&pipecb->hasData);
 	
@@ -149,17 +169,22 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 
 	if(pipecb == NULL){return -1;}
 
-	if(pipecb->flagNoWriters == 1 && pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
-		return 0;
-	}
+	if(pipecb->flagNoReaders == 1){return -1;}
 
 	while(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
-		kernel_wait(&pipecb->hasData, SCHED_PIPE);                                                             
+		if(pipecb->flagNoWriters == 1 && pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
+			return 0;
+		}   
+		kernel_wait(&pipecb->hasData, SCHED_PIPE);   
+		                                                       
 	}
 
 	if (pipecb->bufferChars<0){
 		fprintf(stderr, "Buffer chars fell below 0");
 	}
+
+
+
 
 	//Reader index is ahead of writer index
 	if(pipecb->readerHead>=pipecb->writerHead){
@@ -172,13 +197,38 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 			if (pipecb->bufferChars>=size){
 
 				bytesCopied = BUFFER_SIZE - pipecb->readerHead;
+				//fprintf(stderr," READERHEAD: %d ", pipecb->readerHead);
+
 				memmove(buf, &pipecb->buffer[pipecb->readerHead], bytesCopied);
 				pipecb->readerHead = 0;
+
+
+				//fprintf(stderr," STRING: %s ", buf);
+
+
 				bytesCopied = size - bytesCopied;
-				memmove(buf+bytesCopied, &pipecb->buffer[pipecb->readerHead], bytesCopied);
+				//printf(stderr," BYTES: %d ", bytesCopied);
+				//fprintf(stderr," STRING BEFORE SECOND MOVE : %s ", buf);
+
+
+				int bytes_d = size - bytesCopied;
+
+
+				memmove(buf+bytes_d, &pipecb->buffer[pipecb->readerHead], bytesCopied);
 				pipecb->readerHead = bytesCopied;
 				pipecb->bufferChars = pipecb->bufferChars - size;
 				bytesCopied = size;
+
+				//fprintf(stderr," BYTESWRITTEn: %d ", bytesWritten);
+				//for (int i =0;i<4;i++){
+				//	fprintf(stderr," WRITTEN STRING : %s ", pipecb->buffer[i]);
+				//}
+				
+				//fprintf(stderr," STRING: %s ", buf);
+				//fprintf(stderr," STRING DISPLACED: %s ", buf+bytesWritten);
+				//fprintf(stderr," WRITTEN STRING : %s ", pipecb->buffer);
+
+
 				
 			}
 			//Size is bigger than available chars
@@ -191,6 +241,7 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 				pipecb->readerHead = pipecb->writerHead;
 				bytesCopied = bytesCopied + pipecb->writerHead;
 				pipecb->bufferChars = pipecb->bufferChars - bytesCopied;
+
 				
 			}
 		}
@@ -202,7 +253,6 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 			memmove(buf, &pipecb->buffer[pipecb->readerHead], bytesCopied);
 			pipecb->readerHead = pipecb->readerHead + bytesCopied;
 			pipecb->bufferChars = pipecb->bufferChars - bytesCopied;
-			
 		}
 	}
 
@@ -231,6 +281,8 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 		} 
 	}
 
+
+
 	kernel_broadcast(&pipecb->hasSpace);
 	
 	return bytesCopied;
@@ -243,13 +295,10 @@ int pipe_writer_close(void* pipe){
 
 	if(pipecb == NULL){return -1;}
 
+	pipecb->flagNoWriters = 1;
 	kernel_broadcast(&pipecb->hasData);
 
-	pipecb->flagNoWriters = 1;
-
-	if(pipecb->flagNoWriters == 1 && pipecb->flagNoReaders == 1){
-		free(pipecb);
-	}
+	
 
 	return 0;
 
@@ -267,6 +316,11 @@ int pipe_reader_close(void* pipe){
 	if(pipecb == NULL){return -1;}
 
 	pipecb->flagNoReaders = 1;
+
+	kernel_broadcast(&pipecb->hasSpace);
+	//yield(SCHED_QUANTUM);
+
+	pipe_writer_close(pipecb);
 
 	if(pipecb->flagNoWriters == 1 && pipecb->flagNoReaders == 1){
 		free(pipecb);
