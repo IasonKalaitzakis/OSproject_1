@@ -63,8 +63,8 @@ static file_ops procInfo_ops = {
     .Close = procInfo_close
 };
 
-void initialize_procinfo(procinfo* procInfo) {
-  PCB* cur_pcb = CURPROC;
+void initialize_procinfo(procinfo* procInfo,PCB* cur_pcb) {
+  
   procInfo->pid =get_pid(cur_pcb);
   procInfo->ppid = get_pid(cur_pcb->parent);
 
@@ -145,8 +145,8 @@ void release_PCB(PCB* pcb)
  */
 
 /*
-	This function is provided as an argument to spawn,
-	to execute the main thread of a process.
+  This function is provided as an argument to spawn,
+  to execute the main thread of a process.
 */
 void start_main_thread()
 {
@@ -163,7 +163,7 @@ void start_main_thread()
 
 
 /*
-	System call to create a new process.
+  System call to create a new process.
  */
 Pid_t sys_Exec(Task call, int argl, void* args)
 {
@@ -395,42 +395,55 @@ void* procInfo_open(uint minor){return NULL;}
 int procInfo_write(void* procInfo,const char *buf, unsigned int size){return -1;}
 
 int procInfo_read(void* procInfo, char *buf, unsigned int size) {
+    procInfoCB* procinfocb = (procInfoCB*)procInfo;
+    if (procinfocb == NULL) {return -1; }
+    if (size != sizeof(procinfo)) {return -1;}
 
-  procInfoCB* proc_info_cb = (procInfoCB*)procInfo;
-  if (procInfo == NULL) { return -1;}
-  memcpy(buf, &proc_info_cb->procInfo,sizeof(proc_info_cb->procInfo));
-
-  return (sizeof(proc_info_cb->procInfo));
-
+    if (procinfocb->position >= 0) {
+        memcpy(buf, &procinfocb->procInfo[procinfocb->position], size);
+        procinfocb->position--;
+        return size;
+    }
+  return -1;  
 }
 
 int procInfo_close(void* procInfo) {
-  procInfoCB* proc_info_cb = (procInfoCB*)procInfo;
-  if (procInfo == NULL) { return -1;}
-  free(proc_info_cb->procInfo);
-  free(proc_info_cb);
+  procInfoCB* procinfocb = (procInfoCB*) procInfo;
+  if (procinfocb == NULL) return -1;
+  free(procinfocb->procInfo);
+  free(procinfocb);
   return 0;
 }
 
 Fid_t sys_OpenInfo()
 {
-  FCB* fcb[1];
-  Fid_t fid[1];
-  procInfoCB* proc_info_cb = (procInfoCB*)xmalloc(sizeof(procInfoCB));
-  procinfo* procInfo = (procinfo*)xmalloc(sizeof(procinfo));
-
-  if(FCB_reserve(1, fid, fcb)==0){
+  FCB* fcb;
+  Fid_t fid;
+  PCB* pcb;
+  
+  if (FCB_reserve(1, &fid, &fcb) == 0) {
     return NOFILE;
   }
 
-  proc_info_cb->fcb = fcb[0];
-  initialize_procinfo(procInfo);
-  proc_info_cb->procInfo = procInfo;
+  procInfoCB* procinfocb = (procInfoCB*)xmalloc(sizeof(procInfoCB));
+  procinfo* infoTable = (procinfo*)xmalloc(sizeof(procinfo)*process_count);
 
-  proc_info_cb->fcb->streamobj = proc_info_cb;      
-  proc_info_cb->fcb->streamfunc = &procInfo_ops;
-  rlnode_init(& proc_info_cb->fcb->freelist_node, proc_info_cb->fcb);
+  int inTable = 0;
+  for (int i = MAX_PROC-1; i > 0; i--) {
+      pcb = &PT[i];
 
-	return fid[0];
+      if (pcb->pstate != FREE) { // == ALIVE
+          initialize_procinfo(&infoTable[inTable], pcb);
+          inTable++;
+      }
+  }
+
+  procinfocb->position = inTable;
+  procinfocb->fcb = fcb;
+  procinfocb->procInfo = infoTable;
+
+  fcb->streamobj = procinfocb;      
+  fcb->streamfunc = &procInfo_ops;
+
+  return fid;
 }
-

@@ -65,7 +65,7 @@ int pipe_write(void* pipe,const char *buf, unsigned int size){
 
 
 	if(pipecb->flagNoReaders == 1){return -1;}
-
+	if(pipecb->flagNoWriters == 1){return -1;}
 
 	while(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==BUFFER_SIZE){
 		kernel_wait(&pipecb->hasSpace, SCHED_PIPE);                                                             

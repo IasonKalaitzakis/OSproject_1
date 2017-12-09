@@ -1090,7 +1090,6 @@ int data_producer(int argl, void* args)
 		int rc = Write(1, buffer, n);
 		assert(rc>0);
 		nbytes -= rc;
-		//printf(stderr, " Written: %d \n", rc);
 	}
 	Close(1);
 	return 0;
@@ -1112,7 +1111,6 @@ int data_consumer(int argl, void* args)
 		rc = Read(0, buffer, 16384);
 		assert(rc>=0);
 		count += rc;
-		//fprintf(stderr, " Read: %d \n", rc);
 	}
 	ASSERT(count == nbytes);
 	return 0;
@@ -1267,9 +1265,6 @@ void check_transfer(Fid_t from, Fid_t to)
 	ASSERT((rc=Write(from,"Hello world", 12))==12);
 	ASSERT((rc=Read(to, buffer, 12))==12);
 	ASSERT((rc=strcmp("Hello world", buffer))==0);
-	if(rc!=0){
-		//fprintf(stderr, " string: %s", buffer);
-	}
 }
 
 
@@ -1305,7 +1300,6 @@ BOOT_TEST(test_socket_constructor_illegal_port,
 	ASSERT(Socket(NOPORT-1)==NOFILE);
 	ASSERT(Socket(MAX_PORT+1)==NOFILE);	
 	ASSERT(Socket(MAX_PORT+10)==NOFILE);
-
 	return 0;	
 }
 
@@ -1463,12 +1457,10 @@ BOOT_TEST(test_accept_fails_on_exhausted_fid,
 		return 0;
 	}
 
-
 	Tid_t t = CreateThread(accept_connection, 0, NULL);
 	ASSERT(Connect(cli, 100, 1000)==-1);
 
 	ThreadJoin(t,NULL);
-
 	return 0;
 }
 
@@ -1569,8 +1561,7 @@ BOOT_TEST(test_connect_fails_on_timeout,
 BOOT_TEST(test_socket_small_transfer,
 	"Open a socket and put just a little data in it, in both directions, for many times."
 	)
-{	
-
+{
 	Fid_t sock[2], lsock;
 
 	lsock = Socket(100);   ASSERT(lsock!=NOFILE);
@@ -1593,8 +1584,7 @@ BOOT_TEST(test_socket_small_transfer,
 BOOT_TEST(test_socket_single_producer,
 	"Test blocking in the socket by a single producer single consumer sending 10Mbytes of data."
 	)
-{		
-
+{
 	Fid_t fid = Socket(NOPORT);
 	ASSERT(fid!=NOFILE);
 	if(fid!=0) {
@@ -1623,24 +1613,18 @@ BOOT_TEST(test_socket_single_producer,
 	ASSERT(Exec(data_consumer, sizeof(N), &N)!=NOPROC);
 	ASSERT(Exec(data_producer, sizeof(N), &N)!=NOPROC);
 
-
 	Close(0);
 	Close(1);
 
 	WaitChild(NOPROC,NULL);
 	WaitChild(NOPROC,NULL);
-
 	return 0;
 }
 
 BOOT_TEST(test_socket_multi_producer,
 	"Test blocking in the pipe by 10 producers and single consumer sending 10Mbytes of data."
 	)
-{		
-
-		return 0;
-
-
+{
 	Fid_t fid = Socket(NOPORT);
 	ASSERT(fid!=NOFILE);
 	if(fid!=0) {
@@ -1685,11 +1669,7 @@ BOOT_TEST(test_socket_multi_producer,
 BOOT_TEST(test_shudown_read,
 	"Test that ShutDown with SHUTDOWN_READ blocks Write"
 	)
-{	
-
-	return 0;
-
-
+{
 	Fid_t lsock;
 	lsock = Socket(100);   ASSERT(lsock!=NOFILE);
 	if(lsock!=0) { Dup2(lsock,0); Close(lsock); }
@@ -1710,15 +1690,9 @@ BOOT_TEST(test_shudown_read,
 	ShutDown(cli, SHUTDOWN_READ);
 	char buffer[12];
 	ASSERT(Read(cli, buffer, 12)==-1);
-
-	int result  = Write(srv, "Hello world",12);
-	fprintf(stderr, "%d", result);
 	ASSERT(Write(srv, "Hello world",12)==-1);
 
 	for(uint i=0; i< 2000; i++) {
-	for(uint i=0; i< 15; i++) {
-
-
 		ASSERT(Write(srv, "Hello world",12)==-1);
 		check_transfer(cli, srv);
 	}
@@ -1731,9 +1705,6 @@ BOOT_TEST(test_shudown_write,
 	"Test that ShutDown with SHUTDOWN_WRITE first exhausts buffers and then causes Read to return 0"
 	)
 {
-
-	return 0;
-
 	Fid_t lsock;
 	lsock = Socket(100);   ASSERT(lsock!=NOFILE);
 	if(lsock!=0) { Dup2(lsock,0); Close(lsock); }
