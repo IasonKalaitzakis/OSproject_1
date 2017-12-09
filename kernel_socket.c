@@ -313,8 +313,6 @@ int socket_write(void* socket,const char *buf, unsigned int size){
 	result = pipe_write(socketcb->Peer.pipe_send,buf, size);
 
 	return result;
-
-
 }
 
 int socket_read(void* socket, char *buf, unsigned int size){
@@ -323,9 +321,15 @@ int socket_read(void* socket, char *buf, unsigned int size){
 	int result;
 	SocketCB* socketcb = (SocketCB*) socket;
 
-	if(socketcb == NULL){return -1;}
-	if(socketcb->type != PEER){return -1;}
-	if(socketcb->Peer.pipe_send==NULL ){return -1;}
+	if(socketcb == NULL){
+		fprintf(stderr,"Error 3");
+		return -1;}
+	if(socketcb->type != PEER){
+		fprintf(stderr,"Error 4");
+		return -1;}
+	//if(socketcb->Peer.pipe_send==NULL ){
+	//	fprintf(stderr,"Error 5");
+	//	return -1;}
 
 	result = pipe_read(socketcb->Peer.pipe_receive,buf,size);
 
@@ -361,8 +365,6 @@ int socket_close(void* socket){
 
 		fprintf(stderr, "Bad socket type");
 		return -1;
-
-
 	}
 
 	return 0;

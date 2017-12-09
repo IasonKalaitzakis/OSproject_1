@@ -167,9 +167,13 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 	PipeCB* pipecb = (PipeCB*) pipe;
 	int	bytesCopied = 0;
 
-	if(pipecb == NULL){return -1;}
+	if(pipecb == NULL){
+		//fprintf(stderr,"Error 1");
+		return -1;}
 
-	if(pipecb->flagNoReaders == 1){return -1;}
+	if(pipecb->flagNoReaders == 1){
+		fprintf(stderr,"Error 2");
+		return -1;}
 
 	while(pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
 		if(pipecb->flagNoWriters == 1 && pipecb->readerHead == pipecb->writerHead && pipecb->bufferChars ==0){
@@ -178,6 +182,8 @@ int pipe_read(void* pipe, char *buf, unsigned int size){
 		kernel_wait(&pipecb->hasData, SCHED_PIPE);   
 		                                                       
 	}
+
+	//MSG("READ");
 
 	if (pipecb->bufferChars<0){
 		fprintf(stderr, "Buffer chars fell below 0");
@@ -293,12 +299,11 @@ int pipe_writer_close(void* pipe){
 
 	PipeCB* pipecb = (PipeCB*) pipe;
 
-	if(pipecb == NULL){return -1;}
+	if(pipecb == NULL){
+		return -1;}
 
 	pipecb->flagNoWriters = 1;
 	kernel_broadcast(&pipecb->hasData);
-
-	
 
 	return 0;
 
