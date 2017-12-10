@@ -12,7 +12,7 @@ int socket_close(void* socket);
 
 typedef struct unbound_socket {
 
-	rlnode unbound_node;								//MAY NOT WORK AT ALL CATASTROPHIC FAILURE TOTAL DESTRUCTION WARNING ERROR TOXIC WASTE
+	rlnode unbound_node;				//Not used, will remain for legacy reasons
 }unbound;
 
 typedef struct peer_socket {
@@ -31,7 +31,7 @@ typedef struct listener_socket {
 
 typedef struct socket_control_block {
 
-	int refcount;
+	//int refcount;
 	FCB* fcb;
 	uint port;
 	SOCKET_TYPE type;
@@ -53,8 +53,6 @@ static file_ops socket_ops = {
   	.Close = socket_close
 };
 
-
-
 typedef struct connection_rq{
 
 	SocketCB* client_socket;
@@ -69,12 +67,11 @@ static SocketCB* port_map[MAX_PORT] = {0};
 
 void initialize_FCB_socket(FCB* fcb, SocketCB* socketcb){
 
-	//fcb->refcount = 1;  			/**< @brief Reference counter. */
   	fcb->streamobj = socketcb;			/**< @brief The stream object (e.g., a device) */
 
 	fcb->streamfunc = &socket_ops;
 	
-  	rlnode_init(& fcb->freelist_node, fcb);
+  	//rlnode_init(& fcb->freelist_node, fcb);
 
 } 
 
@@ -92,24 +89,20 @@ Fid_t sys_Socket(port_t port)
 		return NOFILE;
 	}
 
-	socketcb->refcount = 1;
+	//socketcb->refcount = 1;
 	socketcb->fcb = fcb[0];
 	socketcb->port = (int)port;
 	socketcb->type = UNBOUND;
 	socketcb->fid = fid[0];
-
 	
-	rlnode_init(&socketcb->Unbound.unbound_node, socketcb);
+	rlnode_init(&socketcb->Unbound.unbound_node, socketcb);   		
 	
 	initialize_FCB_socket(socketcb->fcb,socketcb);
 
 	return fid[0];
-
 }
 
-
 void* socket_open(uint minor){return NULL;}
-
 
 int sys_Listen(Fid_t sock)
 {
@@ -134,8 +127,6 @@ int sys_Listen(Fid_t sock)
 
 	socketcb->Listener.reqs = COND_INIT;
   	rlnode_init(&socketcb->Listener.reqs_queue, NULL);
-
-	//kernel_wait(&socketcb->reqs, SCHED_PIPE);                                                             
 
 	return 0;
 
@@ -162,10 +153,7 @@ Fid_t sys_Accept(Fid_t lsock)
 		server_socket = fcb_conn->streamobj;
 	} else {return NOFILE;}
 
-
-
 	if(is_rlist_empty(&listener_socket->Listener.reqs_queue)){
-
 		kernel_wait(&listener_socket->Listener.reqs, SCHED_PIPE);  
 	}
 
@@ -213,16 +201,14 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 		fprintf(stderr,"Null socket");
 		return -1;}
 	if(socketcb->port > MAX_PORT || socketcb->port <0){
-		fprintf(stderr,"Bad port or no port?");
+		fprintf(stderr,"Bad port on listener");
 		return -1;}
 	if(port > MAX_PORT || port <0 || port == NOPORT){
-		//fprintf(stderr,"Bad port or no port?");
+		//fprintf(stderr,"Bad port or no port on client");
 		return -1;}
 	if(socketcb->type == LISTENER){
 		//fprintf(stderr,"Given port is listener");
 		return -1;}
-
-	//socketcb->type = UNBOUND;
 
 	SocketCB* listener = port_map[port];
 	if (listener == NULL){
@@ -245,8 +231,6 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 	while(connrq->accepted==0){
 		result = kernel_timedwait(&connrq->conn_cv, SCHED_PIPE, timeout);
 		if(result == 1 && connrq->accepted==0){
-
-			fprintf(stderr,"result == 1 && connrq->accepted==0");
 			return -1;
 		}
 		if(result == 0){return -1;}
@@ -271,12 +255,10 @@ int sys_ShutDown(Fid_t sock, shutdown_mode how)
 		case SHUTDOWN_READ:
 
 			pipe_reader_close(socketcb->Peer.pipe_receive);
-			//pipe_writer_close(socketcb->Peer.pipe_receive);
 			socketcb->Peer.pipe_receive = NULL;
 			break;
 
 		case SHUTDOWN_WRITE:
-
 
 			pipe_writer_close(socketcb->Peer.pipe_send);
 			socketcb->Peer.pipe_send = NULL;
@@ -291,17 +273,13 @@ int sys_ShutDown(Fid_t sock, shutdown_mode how)
 			break;
 
 		default: 
-
 			fprintf(stderr, "Bad how enum");
-
 	}
 
 	return 0;
-
 }
 
 int socket_write(void* socket,const char *buf, unsigned int size){
-
 
 	int result;
 	SocketCB* socketcb = (SocketCB*) socket;
@@ -317,19 +295,11 @@ int socket_write(void* socket,const char *buf, unsigned int size){
 
 int socket_read(void* socket, char *buf, unsigned int size){
 
-
 	int result;
 	SocketCB* socketcb = (SocketCB*) socket;
 
-	if(socketcb == NULL){
-		fprintf(stderr,"Error 3");
-		return -1;}
-	if(socketcb->type != PEER){
-		fprintf(stderr,"Error 4");
-		return -1;}
-	//if(socketcb->Peer.pipe_send==NULL ){
-	//	fprintf(stderr,"Error 5");
-	//	return -1;}
+	if(socketcb == NULL){return -1;}
+	if(socketcb->type != PEER){return -1;}
 
 	result = pipe_read(socketcb->Peer.pipe_receive,buf,size);
 
@@ -343,33 +313,25 @@ int socket_close(void* socket){
 	switch (socketcb->type){
 
 		case UNBOUND:
-
 			free(socketcb);
 			break;
 
 		case PEER:
-
 			sys_ShutDown(socketcb->fid, SHUTDOWN_BOTH);
 			free(socketcb);
 			break;
 
 		case LISTENER:
-
 			kernel_broadcast(&socketcb->Listener.reqs);
-			yield(SCHED_QUANTUM);
+			yield(SCHED_QUANTUM); 					
 			port_map[socketcb->port] = 0;
 			free(socketcb);
 			break;
 
 		default:
 
-		fprintf(stderr, "Bad socket type");
-		return -1;
+			fprintf(stderr, "Bad socket type");
+			return -1;
 	}
-
 	return 0;
-
 }
-
-
-

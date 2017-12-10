@@ -151,10 +151,8 @@ typedef struct pipe_control_block {
 
   int bufferChars;
 
-  int flagNoWriters;
-  int flagNoReaders;
-
-  //Mutex m;
+  int flagAllWritersClosed;
+  int flagAllReadersClosed;
 
 }PipeCB;
 
